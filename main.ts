@@ -276,6 +276,40 @@ export default class LLMTaggerPlugin extends Plugin {
         });
     }
 
+    private addDeterministicTags(content: string, availableTags: string[]): string {
+        // Convert content to lowercase for case-insensitive matching
+        const lowerContent = content.toLowerCase();
+        
+        // Create a set to track which tags we've added to avoid duplicates
+        const addedTags = new Set<string>();
+        
+        // Find matching tags
+        for (const tag of availableTags) {
+            // Remove # if present and convert to lowercase
+            const cleanTag = tag.replace(/^#/, '').toLowerCase();
+            
+            // Check if the tag exists as a whole word in the content
+            const regex = new RegExp(`\\b${cleanTag}\\b`, 'i');
+            if (regex.test(lowerContent)) {
+                addedTags.add(tag.startsWith('#') ? tag : `#${tag}`);
+            }
+        }
+        
+        if (addedTags.size === 0) {
+            return content;
+        }
+
+        // Add tags at the start of the content, after any existing frontmatter
+        const frontMatterMatch = content.match(/^---\n[\s\S]*?\n---\n/);
+        if (frontMatterMatch) {
+            const frontMatter = frontMatterMatch[0];
+            const restContent = content.slice(frontMatter.length);
+            return `${frontMatter}${Array.from(addedTags).join(' ')} ${restContent}`;
+        } else {
+            return `${Array.from(addedTags).join(' ')} ${content}`;
+        }
+    }
+
     async processContentWithOllama(content: string, availableTags: string[]): Promise<string> {
         if (!this.settings.selectedModel) {
             throw new Error('No Ollama model selected');
@@ -286,7 +320,10 @@ export default class LLMTaggerPlugin extends Plugin {
             return content;
         }
 
-        // Get tag suggestions and placement from Ollama
+        // First, add deterministic tags based on word matches
+        let processedContent = this.addDeterministicTags(content, availableTags);
+
+        // Get tag suggestions and placement from Ollama for additional semantic tagging
         const response = await fetch('http://localhost:11434/api/generate', {
             method: 'POST',
             headers: {
@@ -300,13 +337,13 @@ Available tags: ${availableTags.join(', ')}
 
 Instructions:
 1. Create a brief 1-2 sentence summary of the content
-2. Add relevant tags from the provided list
+2. Add relevant tags from the provided list that WEREN'T already matched by word (don't repeat tags)
 3. Only use tags from the provided list
 4. Each tag MUST start with a # symbol
 5. Keep the summary concise and focused
 
-Content to analyze:
-${content}
+Content to analyze (with existing tags):
+${processedContent}
 
 Provide a tagged summary:`,
                 stream: false
@@ -328,10 +365,10 @@ ${taggedSummary}
 
 ---
 
-${content}`;
+${processedContent}`;
         }
         
-        return content;
+        return processedContent;
     }
 
     private shouldProcessFile(file: TFile): boolean {
