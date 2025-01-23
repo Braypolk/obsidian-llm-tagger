@@ -1,0 +1,152 @@
+.llm-tagger-modal {
+    padding: 1em;
+}
+
+.llm-tagger-modal .setting-item {
+    border-top: 0;
+    padding-top: 0.75em;
+}
+
+.llm-tagger-modal select,
+.llm-tagger-modal textarea {
+    width: 100%;
+    margin-top: 0.5em;
+    background-color: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    padding: 0.5em;
+    border-radius: 4px;
+}
+
+.llm-tagger-modal textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.llm-tagger-modal .button-container {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 1em;
+}
+
+.llm-tagger-modal button {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--interactive-normal);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.llm-tagger-modal button:hover {
+    background-color: var(--interactive-hover);
+}
+
+.llm-tagger-modal button.mod-cta {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.llm-tagger-modal button.mod-cta:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+.llm-tagger-settings .setting-item {
+    border-top: 1px solid var(--background-modifier-border);
+    padding: 1em 0;
+}
+
+.llm-tagger-settings .setting-item:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.llm-tagger-settings textarea {
+    min-height: 80px;
+    width: 100%;
+}
+
+/* View panel styles */
+.workspace-leaf-content[data-type="llm-tagger-view"] {
+    padding: 1em;
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] h2 {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] h3 {
+    margin: 1em 0 0.5em;
+    font-size: 1.1em;
+    color: var(--text-muted);
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] select,
+.workspace-leaf-content[data-type="llm-tagger-view"] textarea {
+    width: 100%;
+    background-color: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    padding: 0.5em;
+    border-radius: 4px;
+    margin-bottom: 1em;
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] button {
+    width: 100%;
+    padding: 0.75em;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.15s ease;
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] button:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] .success {
+    color: var(--text-success);
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] .error {
+    color: var(--text-error);
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] progress {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--background-modifier-border);
+    border: none;
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] progress::-webkit-progress-bar {
+    background-color: var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] progress::-webkit-progress-value {
+    background-color: var(--interactive-accent);
+    border-radius: 4px;
+    transition: width 0.2s ease;
+}
+
+.workspace-leaf-content[data-type="llm-tagger-view"] progress::-moz-progress-bar {
+    background-color: var(--interactive-accent);
+    border-radius: 4px;
+    transition: width 0.2s ease;
+}
