@@ -2,11 +2,13 @@
   "id": "obsidian-llm-tagger", 
   "name": "LLM Tagger", 
   "version": "1.0.0", 
-  "minAppVersion": "0.9.7", 
-  "description": "A plugin that uses LLMs with Ollama to add tags from a user-defined list to all documents in a vault.", 
+  "minAppVersion": "1.0.0", 
+  "description": "Automatically tag your notes using local LLMs via Ollama", 
   "author": "David Jayatillake", 
-  "authorUrl": "https://github.com/david-jayatillake", 
+  "authorUrl": "https://github.com/djayatillake", 
   "isDesktopOnly": true,
-  "fundingUrl": "",
+  "fundingUrl": {
+    "GitHub": "https://github.com/sponsors/djayatillake"
+  },
   "main": "main.js" 
 }
