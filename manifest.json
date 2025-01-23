@@ -1,5 +1,5 @@
 { 
-  "id": "obsidian-llm-tagger", 
+  "id": "llm-tagger", 
   "name": "LLM Tagger", 
   "version": "1.0.0", 
   "minAppVersion": "1.0.0", 
