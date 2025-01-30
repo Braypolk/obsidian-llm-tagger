@@ -12,6 +12,7 @@ import {
     debounce
 } from 'obsidian';
 
+
 const ICON_NAME = 'llm-tagger-robot';
 const VIEW_TYPE = 'llm-tagger-view';
 
