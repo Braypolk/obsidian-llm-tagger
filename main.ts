@@ -196,12 +196,11 @@ export default class LLMTaggerPlugin extends Plugin {
             
             // Create model selection dropdown
             const modelContainer = modal.contentEl.createDiv();
-            modelContainer.style.marginBottom = '1em';
+            modelContainer.addClass('model-container');
             const modelLabel = modelContainer.createEl('label');
             modelLabel.setText('Select Ollama Model:');
             const modelSelect = modelContainer.createEl('select');
-            modelSelect.style.width = '100%';
-            modelSelect.style.marginTop = '0.5em';
+            modelSelect.addClass('model-select');
 
             // Add a placeholder option
             const placeholderOption = modelSelect.createEl('option');
@@ -229,23 +228,13 @@ export default class LLMTaggerPlugin extends Plugin {
 
             // Tags input
             const tagsContainer = modal.contentEl.createDiv();
-            tagsContainer.style.marginTop = '1em';
+            tagsContainer.addClass('tags-container');
             const tagsLabel = tagsContainer.createEl('label');
             tagsLabel.setText('Enter tags (comma-separated):');
             const input = tagsContainer.createEl('textarea');
-            input.style.width = '100%';
-            input.style.height = '100px';
-            input.style.marginTop = '0.5em';
-            input.placeholder = 'Enter tags separated by commas...';
-            if (this.settings.defaultTags.length > 0) {
-                input.value = this.settings.defaultTags.join(', ');
-            }
 
             const buttonContainer = modal.contentEl.createDiv();
-            buttonContainer.style.marginTop = '1em';
-            buttonContainer.style.display = 'flex';
-            buttonContainer.style.justifyContent = 'flex-end';
-            buttonContainer.style.gap = '10px';
+            buttonContainer.addClass('button-container');
 
             const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
             const okButton = buttonContainer.createEl('button', { text: 'OK', cls: 'mod-cta' });
@@ -473,10 +462,10 @@ class LLMTaggerView extends ItemView {
 
         // Model selection
         const modelContainer = container.createDiv();
+        modelContainer.addClass('model-container');
         modelContainer.createEl('h3', { text: 'Select Model' });
         const modelSelect = modelContainer.createEl('select');
-        modelSelect.style.width = '100%';
-        modelSelect.style.marginBottom = '1em';
+        modelSelect.addClass('model-select');
 
         // Add placeholder option
         const placeholderOption = modelSelect.createEl('option');
@@ -509,32 +498,23 @@ class LLMTaggerView extends ItemView {
 
         // Tags input
         const tagsContainer = container.createDiv();
+        tagsContainer.addClass('tags-container');
         tagsContainer.createEl('h3', { text: 'Enter Tags' });
         const tagsInput = tagsContainer.createEl('textarea');
-        tagsInput.placeholder = 'Enter tags separated by commas...';
-        tagsInput.style.width = '100%';
-        tagsInput.style.height = '100px';
-        tagsInput.style.marginBottom = '1em';
-        if (this.plugin.settings.defaultTags.length > 0) {
-            tagsInput.value = this.plugin.settings.defaultTags.join(', ');
-        }
 
         // Progress section
         const progressContainer = container.createDiv();
         progressContainer.createEl('h3', { text: 'Progress' });
         
         // Create progress bar
-        this.progressBar = progressContainer.createEl('progress', {
-            attr: { value: '0', max: '100' }
-        });
-        this.progressBar.style.width = '100%';
-        this.progressBar.style.marginBottom = '0.5em';
+        this.progressBar = progressContainer.createEl('progress');
+        this.progressBar.addClass('progress-bar');
+        this.progressBar.attr('value', '0');
+        this.progressBar.attr('max', '100');
 
         // Progress text
-        this.progressText = progressContainer.createDiv('progress-text');
-        this.progressText.style.fontSize = '0.9em';
-        this.progressText.style.color = 'var(--text-muted)';
-        this.progressText.style.marginBottom = '1em';
+        this.progressText = progressContainer.createDiv();
+        this.progressText.addClass('progress-text');
         this.progressText.textContent = 'Ready to tag documents';
 
         // Start button
@@ -542,7 +522,6 @@ class LLMTaggerView extends ItemView {
             text: 'Start Tagging',
             cls: 'mod-cta'
         });
-        startButton.style.width = '100%';
 
         startButton.addEventListener('click', async () => {
             if (!modelSelect.value) {
@@ -575,12 +554,12 @@ class LLMTaggerView extends ItemView {
 
     updateProgress(current: number, total: number, filename: string) {
         const percentage = Math.round((current / total) * 100);
-        this.progressBar.value = percentage;
+        this.progressBar.attr('value', percentage.toString());
         this.progressText.textContent = `Processing ${filename} (${current}/${total})`;
     }
 
     resetProgress() {
-        this.progressBar.value = 0;
+        this.progressBar.attr('value', '0');
         this.progressText.textContent = 'Ready to tag documents';
     }
 }

@@ -150,3 +150,22 @@
     border-radius: 4px;
     transition: width 0.2s ease;
 }
+
+.model-container {
+    margin-bottom: 1em;
+}
+
+.tags-container {
+    margin-top: 1em;
+}
+
+.progress-text {
+    font-size: 0.9em;
+    color: var(--text-muted);
+    margin-bottom: 1em;
+}
+
+.progress-bar {
+    width: 100%;
+    margin-bottom: 0.5em;
+}
