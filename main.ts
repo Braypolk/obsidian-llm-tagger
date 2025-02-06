@@ -509,8 +509,8 @@ class LLMTaggerView extends ItemView {
         // Create progress bar
         this.progressBar = progressContainer.createEl('progress');
         this.progressBar.addClass('progress-bar');
-        this.progressBar.attr('value', '0');
-        this.progressBar.attr('max', '100');
+        this.progressBar.setAttribute('value', '0');
+        this.progressBar.setAttribute('max', '100');
 
         // Progress text
         this.progressText = progressContainer.createDiv();
@@ -554,12 +554,12 @@ class LLMTaggerView extends ItemView {
 
     updateProgress(current: number, total: number, filename: string) {
         const percentage = Math.round((current / total) * 100);
-        this.progressBar.attr('value', percentage.toString());
+        this.progressBar.setAttribute('value', percentage.toString());
         this.progressText.textContent = `Processing ${filename} (${current}/${total})`;
     }
 
     resetProgress() {
-        this.progressBar.attr('value', '0');
+        this.progressBar.setAttribute('value', '0');
         this.progressText.textContent = 'Ready to tag documents';
     }
 }
