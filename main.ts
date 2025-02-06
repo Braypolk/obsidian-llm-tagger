@@ -161,7 +161,6 @@ export default class LLMTaggerPlugin extends Plugin {
     async onunload() {
         console.log('Unloading LLM Tagger plugin');
         this.disableAutoTagging();
-        this.app.workspace.detachLeavesOfType(VIEW_TYPE);
     }
 
     async loadSettings() {
