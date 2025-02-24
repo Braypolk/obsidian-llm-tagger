@@ -9,6 +9,5 @@
   "isDesktopOnly": true,
   "fundingUrl": {
     "GitHub": "https://github.com/sponsors/djayatillake"
-  },
-  "main": "main.js" 
+  }
 }
