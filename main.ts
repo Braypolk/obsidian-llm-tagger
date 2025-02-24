@@ -12,7 +12,6 @@ import {
     debounce
 } from 'obsidian';
 
-
 const ICON_NAME = 'llm-tagger-robot';
 const VIEW_TYPE = 'llm-tagger-view';
 
@@ -115,20 +114,27 @@ export default class LLMTaggerPlugin extends Plugin {
         }
 
         try {
-            const content = await this.app.vault.read(file);
+            const initialContent = await this.app.vault.read(file);
             
             // Skip if content is empty
-            if (!content.trim()) {
+            if (!initialContent.trim()) {
                 return;
             }
 
             const taggedContent = await this.processContentWithOllama(
-                content, 
+                initialContent, 
                 this.settings.defaultTags
             );
 
+            // Verify file hasn't been modified while waiting for Ollama
+            const currentContent = await this.app.vault.read(file);
+            if (currentContent !== initialContent) {
+                console.log(`Skipping ${file.basename} - content changed while processing`);
+                return;
+            }
+
             // Only update if tags were actually added
-            if (taggedContent !== content) {
+            if (taggedContent !== initialContent) {
                 await this.app.vault.modify(file, taggedContent);
                 new Notice(`Auto-tagged: ${file.basename}`);
                 this.settings.taggedFiles[file.path] = Date.now();
@@ -400,18 +406,25 @@ ${processedContent}`;
                 }
 
                 try {
-                    const content = await this.app.vault.read(file);
+                    const initialContent = await this.app.vault.read(file);
                     
                     // Skip if already tagged
-                    if (this.isAlreadyTagged(content)) {
+                    if (this.isAlreadyTagged(initialContent)) {
                         console.log(`Skipping ${file.basename} - already has tag metadata`);
                         continue;
                     }
                     
-                    const taggedContent = await this.processContentWithOllama(content, tags);
+                    const taggedContent = await this.processContentWithOllama(initialContent, tags);
+
+                    // Verify file hasn't been modified while waiting for Ollama
+                    const currentContent = await this.app.vault.read(file);
+                    if (currentContent !== initialContent) {
+                        console.log(`Skipping ${file.basename} - content changed while processing`);
+                        continue;
+                    }
                     
                     // Only update if content changed
-                    if (taggedContent !== content) {
+                    if (taggedContent !== initialContent) {
                         await this.app.vault.modify(file, taggedContent);
                         this.settings.taggedFiles[file.path] = Date.now();
                         await this.saveSettings();
