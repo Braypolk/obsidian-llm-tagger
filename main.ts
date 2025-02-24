@@ -68,7 +68,7 @@ export default class LLMTaggerPlugin extends Plugin {
 
         this.addCommand({
             id: 'add-tags',
-            name: 'Add Tags to Documents',
+            name: 'Add tags to documents',
             callback: () => this.addTagsToDocuments(),
         });
 
@@ -192,13 +192,13 @@ export default class LLMTaggerPlugin extends Plugin {
     async getUserDefinedTags(): Promise<string[] | null> {
         return new Promise(async (resolve) => {
             const modal = new Modal(this.app);
-            modal.titleEl.setText("Configure Tags");
+            modal.titleEl.setText("Configure tags");
             
             // Create model selection dropdown
             const modelContainer = modal.contentEl.createDiv();
             modelContainer.addClass('model-container');
             const modelLabel = modelContainer.createEl('label');
-            modelLabel.setText('Select Ollama Model:');
+            modelLabel.setText('Select Ollama model:');
             const modelSelect = modelContainer.createEl('select');
             modelSelect.addClass('model-select');
 
@@ -463,7 +463,7 @@ class LLMTaggerView extends ItemView {
         // Model selection
         const modelContainer = container.createDiv();
         modelContainer.addClass('model-container');
-        modelContainer.createEl('h3', { text: 'Select Model' });
+        modelContainer.createEl('h3', { text: 'Select model' });
         const modelSelect = modelContainer.createEl('select');
         modelSelect.addClass('model-select');
 
@@ -499,7 +499,7 @@ class LLMTaggerView extends ItemView {
         // Tags input
         const tagsContainer = container.createDiv();
         tagsContainer.addClass('tags-container');
-        tagsContainer.createEl('h3', { text: 'Enter Tags' });
+        tagsContainer.createEl('h3', { text: 'Enter tags' });
         const tagsInput = tagsContainer.createEl('textarea');
 
         // Progress section
@@ -519,7 +519,7 @@ class LLMTaggerView extends ItemView {
 
         // Start button
         const startButton = container.createEl('button', { 
-            text: 'Start Tagging',
+            text: 'Start tagging',
             cls: 'mod-cta'
         });
 
@@ -576,10 +576,10 @@ class LLMTaggerSettingTab extends PluginSettingTab {
         const {containerEl} = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', {text: 'LLM Tagger Settings'});
+        containerEl.createEl('h2', {text: 'LLM Tagger settings'});
 
         new Setting(containerEl)
-            .setName('Default Model')
+            .setName('Default model')
             .setDesc('Select the default Ollama model to use')
             .addDropdown(async (dropdown) => {
                 dropdown.addOption('', 'Select a model...');
@@ -603,7 +603,7 @@ class LLMTaggerSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName('Default Tags')
+            .setName('Default tags')
             .setDesc('Enter default tags (comma-separated) that will be pre-filled when adding tags')
             .addTextArea(text => text
                 .setPlaceholder('tag1, tag2, tag3')
@@ -616,7 +616,7 @@ class LLMTaggerSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('Auto-add Tags')
+            .setName('Auto-add tags')
             .setDesc('Automatically add tags to new documents')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.autoAddTags)
