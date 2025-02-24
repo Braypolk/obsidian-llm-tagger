@@ -576,8 +576,6 @@ class LLMTaggerSettingTab extends PluginSettingTab {
         const {containerEl} = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', {text: 'LLM Tagger settings'});
-
         new Setting(containerEl)
             .setName('Default model')
             .setDesc('Select the default Ollama model to use')
