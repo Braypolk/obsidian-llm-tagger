@@ -9,7 +9,8 @@ import {
     WorkspaceLeaf,
     ItemView,
     addIcon,
-    debounce
+    debounce,
+    MarkdownView
 } from 'obsidian';
 
 const ICON_NAME = 'llm-tagger-robot';
@@ -35,6 +36,7 @@ export default class LLMTaggerPlugin extends Plugin {
     settings: LLMTaggerSettings;
     view: LLMTaggerView;
     private autoTaggingEnabled = false;
+    private lastOpenFile: TFile | null = null;
 
     async onload() {
         console.log('Loading LLM Tagger plugin');
@@ -60,12 +62,41 @@ export default class LLMTaggerPlugin extends Plugin {
             this.activateView();
         });
 
-        // Wait for layout to be ready before setting up auto-tagging
-        this.app.workspace.onLayoutReady(() => {
-            if (this.settings.autoAddTags) {
-                this.enableAutoTagging();
-            }
+        // Add command to tag documents
+        this.addCommand({
+            id: 'add-tags-to-documents',
+            name: 'Add tags to documents',
+            callback: () => {
+                this.addTagsToDocuments(this.view);
+            },
         });
+
+        // Enable auto-tagging if it's enabled in settings
+        if (this.settings.autoAddTags) {
+            this.enableAutoTagging();
+        }
+        
+        // Register event for file opening and closing to handle auto-tagging
+        this.registerEvent(
+            this.app.workspace.on('file-open', (file) => {
+                // If a file was previously open and it's different from the current file,
+                // consider the previous file as "closed" and auto-tag it
+                if (this.lastOpenFile && (!file || this.lastOpenFile.path !== file.path)) {
+                    const previousFile = this.lastOpenFile;
+                    
+                    // Check if the file is a markdown file before attempting to tag it
+                    if (previousFile instanceof TFile && previousFile.extension === 'md') {
+                        // Use a small delay to ensure the file is fully saved
+                        setTimeout(() => {
+                            this.autoTagFileOnClose(previousFile);
+                        }, 500);
+                    }
+                }
+                
+                // Update the lastOpenFile reference
+                this.lastOpenFile = file instanceof TFile ? file : null;
+            })
+        );
 
         this.addCommand({
             id: 'add-tags',
@@ -121,6 +152,12 @@ export default class LLMTaggerPlugin extends Plugin {
             return;
         }
 
+        // Skip if file is currently being edited
+        if (this.isFileCurrentlyOpen(file)) {
+            console.log(`Auto-tagging: Skipping ${file.basename} - file is currently open for editing`);
+            return;
+        }
+
         try {
             const initialContent = await this.app.vault.read(file);
             
@@ -152,6 +189,69 @@ export default class LLMTaggerPlugin extends Plugin {
             console.error('Error auto-tagging file:', error);
             new Notice(`Failed to auto-tag ${file.basename}: ${error.message}`);
         }
+    }
+
+    private async autoTagFileOnClose(file: TFile) {
+        // Don't process if auto-tagging is disabled or no model is selected
+        if (!this.settings.autoAddTags || !this.settings.selectedModel || !this.settings.defaultTags.length) {
+            return;
+        }
+
+        // Skip if file matches exclusion patterns or hasn't been modified since last tagging
+        if (!this.shouldProcessFile(file)) {
+            console.log(`Auto-tagging on close: Skipping ${file.basename} - excluded by pattern or not modified`);
+            return;
+        }
+
+        try {
+            const initialContent = await this.app.vault.read(file);
+            
+            // Skip if content is empty
+            if (!initialContent.trim()) {
+                return;
+            }
+
+            const taggedContent = await this.processContentWithOllama(
+                initialContent, 
+                this.settings.defaultTags
+            );
+
+            // Verify file hasn't been modified while waiting for Ollama
+            const currentContent = await this.app.vault.read(file);
+            if (currentContent !== initialContent) {
+                console.log(`Skipping ${file.basename} - content changed while processing`);
+                return;
+            }
+
+            // Only update if tags were actually added
+            if (taggedContent !== initialContent) {
+                await this.app.vault.modify(file, taggedContent);
+                new Notice(`Auto-tagged on close: ${file.basename}`);
+                this.settings.taggedFiles[file.path] = Date.now();
+                await this.saveSettings();
+            }
+        } catch (error) {
+            console.error('Error auto-tagging file on close:', error);
+            new Notice(`Failed to auto-tag ${file.basename} on close: ${error.message}`);
+        }
+    }
+
+    private isFileCurrentlyOpen(file: TFile): boolean {
+        // Check all leaves in the workspace to see if the file is open
+        const { workspace } = this.app;
+        
+        // Check if the file is open in any leaf
+        let fileIsOpen = false;
+        
+        workspace.iterateAllLeaves(leaf => {
+            const view = leaf.view;
+            if (view instanceof MarkdownView && view.file && view.file.path === file.path) {
+                fileIsOpen = true;
+                return true; // Stop iteration
+            }
+        });
+        
+        return fileIsOpen;
     }
 
     async activateView() {
@@ -246,6 +346,11 @@ export default class LLMTaggerPlugin extends Plugin {
             const tagsLabel = tagsContainer.createEl('label');
             tagsLabel.setText('Enter tags (comma-separated):');
             const input = tagsContainer.createEl('textarea');
+            
+            // Pre-populate the tags input with saved tags from settings
+            if (this.settings.defaultTags.length > 0) {
+                input.value = this.settings.defaultTags.join(', ');
+            }
 
             const buttonContainer = modal.contentEl.createDiv();
             buttonContainer.addClass('button-container');
@@ -269,8 +374,12 @@ export default class LLMTaggerPlugin extends Plugin {
                     return;
                 }
                 this.settings.selectedModel = modelSelect.value;
-                this.saveSettings();
+                
+                // Parse and save the tags to settings
                 const tags = tagInput.split(',').map(tag => tag.trim()).filter(tag => tag);
+                this.settings.defaultTags = tags;
+                
+                this.saveSettings();
                 resolve(tags);
                 modal.close();
             });
@@ -557,6 +666,21 @@ class LLMTaggerView extends ItemView {
         tagsContainer.addClass('tags-container');
         tagsContainer.createEl('h3', { text: 'Enter tags' });
         const tagsInput = tagsContainer.createEl('textarea');
+        
+        // Pre-populate the tags input with saved tags from settings
+        if (this.plugin.settings.defaultTags.length > 0) {
+            tagsInput.value = this.plugin.settings.defaultTags.join(', ');
+        }
+        
+        // Save tags when the textarea loses focus
+        tagsInput.addEventListener('blur', async () => {
+            const tagInput = tagsInput.value.trim();
+            if (tagInput) {
+                const tags = tagInput.split(',').map(tag => tag.trim()).filter(tag => tag);
+                this.plugin.settings.defaultTags = tags;
+                await this.plugin.saveSettings();
+            }
+        });
 
         // Progress section
         const progressContainer = container.createDiv();
