@@ -20,13 +20,15 @@ interface LLMTaggerSettings {
     defaultTags: string[];
     autoAddTags: boolean;
     taggedFiles: { [path: string]: number }; // Map of file paths to timestamp of last tagging
+    excludePatterns: string[]; // Patterns for files/folders to exclude from tagging
 }
 
 const DEFAULT_SETTINGS: LLMTaggerSettings = {
     selectedModel: null,
     defaultTags: [],
     autoAddTags: false,
-    taggedFiles: {}
+    taggedFiles: {},
+    excludePatterns: []
 }
 
 export default class LLMTaggerPlugin extends Plugin {
@@ -110,6 +112,12 @@ export default class LLMTaggerPlugin extends Plugin {
     private async autoTagFile(file: TFile) {
         // Don't process if auto-tagging is disabled or no model is selected
         if (!this.settings.autoAddTags || !this.settings.selectedModel || !this.settings.defaultTags.length) {
+            return;
+        }
+
+        // Skip if file matches exclusion patterns or hasn't been modified since last tagging
+        if (!this.shouldProcessFile(file)) {
+            console.log(`Auto-tagging: Skipping ${file.basename} - excluded by pattern or not modified`);
             return;
         }
 
@@ -367,6 +375,41 @@ ${processedContent}`;
     }
 
     private shouldProcessFile(file: TFile): boolean {
+        // Check if file matches any exclusion pattern
+        if (this.settings.excludePatterns.length > 0) {
+            const filePath = file.path.toLowerCase();
+            
+            for (const pattern of this.settings.excludePatterns) {
+                // Handle patterns with or without wildcards
+                if (pattern.includes('*')) {
+                    // Convert glob pattern to regex
+                    const regexPattern = pattern
+                        .toLowerCase()
+                        .replace(/\./g, '\\.')
+                        .replace(/\*/g, '.*');
+                    
+                    const regex = new RegExp(`^${regexPattern}$|/${regexPattern}$|/${regexPattern}/`);
+                    if (regex.test(filePath)) {
+                        return false;
+                    }
+                } else {
+                    // Simple string match for exact file or folder names
+                    const normalizedPattern = pattern.toLowerCase();
+                    
+                    // Check if it's an exact file match
+                    if (file.basename.toLowerCase() === normalizedPattern) {
+                        return false;
+                    }
+                    
+                    // Check if file is in a folder with this name
+                    if (filePath.includes(`/${normalizedPattern}/`)) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // If not excluded, check if it needs processing based on modification time
         const lastTagged = this.settings.taggedFiles[file.path];
         if (!lastTagged) return true;
 
@@ -635,5 +678,25 @@ class LLMTaggerSettingTab extends PluginSettingTab {
                     this.plugin.settings.autoAddTags = value;
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl)
+            .setName('Exclude patterns')
+            .setDesc('Enter file/folder names or patterns to exclude from tagging (one per line). Supports * wildcard.')
+            .addTextArea(text => {
+                text.setPlaceholder('daily\nmeeting notes\ntemplates/*\n.excalidraw')
+                    .setValue(this.plugin.settings.excludePatterns.join('\n'))
+                    .onChange(async (value) => {
+                        // Split by newlines and filter out empty lines
+                        this.plugin.settings.excludePatterns = value
+                            .split('\n')
+                            .map(pattern => pattern.trim())
+                            .filter(pattern => pattern);
+                        await this.plugin.saveSettings();
+                    });
+                
+                // Make the textarea taller
+                text.inputEl.rows = 6;
+                text.inputEl.cols = 40;
+            });
     }
 }
