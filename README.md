@@ -10,6 +10,10 @@ This plugin uses Ollama to automatically tag your Obsidian notes using large lan
 - ⚡ Auto-tagging option for new and modified files
 - 🎯 Customizable tag list for focused tagging
 - 🔄 Smart processing that avoids re-tagging unchanged files
+- 🚫 Exclude specific files or folders from tagging using patterns
+- 📝 Skip auto-tagging for files you're currently editing
+- 🔄 Auto-tag files when you close them
+- 💾 Persistent tag storage between Obsidian sessions
 
 ## Prerequisites
 
@@ -43,11 +47,33 @@ This plugin uses Ollama to automatically tag your Obsidian notes using large lan
 
 Enable auto-tagging in the plugin settings to automatically tag new or modified notes.
 
+### Exclusion Patterns
+
+You can exclude specific files or folders from being tagged by adding patterns in the plugin settings:
+- Enter exact filenames (e.g., `daily.md`)
+- Enter folder paths (e.g., `templates/`)
+- Use wildcards (e.g., `*.excalidraw`, `meeting-notes/*`)
+
 ## Configuration
 
 - **Model Selection**: Choose any Ollama model you have installed
 - **Default Tags**: Set your commonly used tags
 - **Auto-tagging**: Toggle automatic tagging of new/modified files
+- **Exclude Patterns**: Specify files or folders to exclude from tagging
+
+## Changelog
+
+### v1.1 (March 21, 2025)
+- Added exclusion patterns to skip specific files/folders from tagging
+- Skip auto-tagging for files that are currently being edited
+- Auto-tag files when they are closed (after editing)
+- Persist tags between Obsidian sessions
+- Improved user experience with automatic tag saving
+
+### v1.0 (Initial Release)
+- Basic tagging functionality with Ollama integration
+- Auto-tagging for new and modified files
+- Tag customization and model selection
 
 ## Development
 
