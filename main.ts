@@ -71,6 +71,47 @@ export default class LLMTaggerPlugin extends Plugin {
             },
         });
 
+        // Add command to untag all documents
+        this.addCommand({
+            id: 'untag-all-documents',
+            name: 'Untag all documents',
+            callback: () => {
+                this.untagAllDocuments(this.view);
+            },
+        });
+
+        // Add command to tag current document
+        this.addCommand({
+            id: 'tag-current-document',
+            name: 'Tag current document',
+            checkCallback: (checking) => {
+                const activeFile = this.app.workspace.getActiveFile();
+                if (activeFile && activeFile.extension === 'md') {
+                    if (!checking) {
+                        this.tagCurrentDocument();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        // Add command to untag current document
+        this.addCommand({
+            id: 'untag-current-document',
+            name: 'Untag current document',
+            checkCallback: (checking) => {
+                const activeFile = this.app.workspace.getActiveFile();
+                if (activeFile && activeFile.extension === 'md') {
+                    if (!checking) {
+                        this.untagCurrentDocument();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
         // Enable auto-tagging if it's enabled in settings
         if (this.settings.autoAddTags) {
             this.enableAutoTagging();
@@ -97,12 +138,6 @@ export default class LLMTaggerPlugin extends Plugin {
                 this.lastOpenFile = file instanceof TFile ? file : null;
             })
         );
-
-        this.addCommand({
-            id: 'add-tags',
-            name: 'Add tags to documents',
-            callback: () => this.addTagsToDocuments(),
-        });
 
         this.addSettingTab(new LLMTaggerSettingTab(this.app, this));
         console.log('LLM Tagger plugin loaded');
@@ -181,7 +216,6 @@ export default class LLMTaggerPlugin extends Plugin {
             // Only update if tags were actually added
             if (taggedContent !== initialContent) {
                 await this.app.vault.modify(file, taggedContent);
-                new Notice(`Auto-tagged: ${file.basename}`);
                 this.settings.taggedFiles[file.path] = Date.now();
                 await this.saveSettings();
             }
@@ -226,7 +260,6 @@ export default class LLMTaggerPlugin extends Plugin {
             // Only update if tags were actually added
             if (taggedContent !== initialContent) {
                 await this.app.vault.modify(file, taggedContent);
-                new Notice(`Auto-tagged on close: ${file.basename}`);
                 this.settings.taggedFiles[file.path] = Date.now();
                 await this.saveSettings();
             }
@@ -574,8 +607,8 @@ ${processedContent}`;
                         console.log(`Skipping ${file.basename} - content changed while processing`);
                         continue;
                     }
-                    
-                    // Only update if content changed
+
+                    // Only update if tags were actually added
                     if (taggedContent !== initialContent) {
                         await this.app.vault.modify(file, taggedContent);
                         this.settings.taggedFiles[file.path] = Date.now();
@@ -596,6 +629,196 @@ ${processedContent}`;
             }
         }
     }
+    
+    async untagAllDocuments(view?: LLMTaggerView) {
+        // Confirm before proceeding
+        const confirmed = await new Promise<boolean>((resolve) => {
+            const modal = new Modal(this.app);
+            modal.titleEl.setText("Confirm Untag All");
+            
+            const content = modal.contentEl.createDiv();
+            content.setText("This will remove all tags and summaries added by LLM Tagger from your documents. This action cannot be undone. Are you sure you want to proceed?");
+            
+            const buttonContainer = modal.contentEl.createDiv();
+            buttonContainer.addClass('button-container');
+            
+            const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
+            const confirmButton = buttonContainer.createEl('button', { text: 'Untag All', cls: 'mod-warning' });
+            
+            cancelButton.addEventListener('click', () => {
+                resolve(false);
+                modal.close();
+            });
+            
+            confirmButton.addEventListener('click', () => {
+                resolve(true);
+                modal.close();
+            });
+            
+            modal.open();
+        });
+        
+        if (!confirmed) return;
+        
+        const files = this.app.vault.getMarkdownFiles();
+        let processed = 0;
+        let modified = 0;
+        
+        try {
+            for (const file of files) {
+                processed++;
+                if (view) {
+                    view.updateProgress(processed, files.length, `Untagging: ${file.basename}`);
+                }
+                
+                try {
+                    const content = await this.app.vault.read(file);
+                    let cleanedContent = content;
+                    let wasModified = false;
+                    
+                    // Check if the file has LLM Tagger tags
+                    if (this.isAlreadyTagged(content)) {
+                        // Pattern to match the entire tagged section:
+                        // 1. The metadata section with LLM-tagged
+                        // 2. The summary text
+                        // 3. The divider (---)
+                        // 4. Optional newlines after the divider
+                        const taggedSectionPattern = /---\nLLM-tagged:[\s\S]*?---\n\n[\s\S]*?\n\n---\n+/;
+                        
+                        // Remove the entire tagged section
+                        cleanedContent = content.replace(taggedSectionPattern, '');
+                        
+                        if (cleanedContent !== content) {
+                            wasModified = true;
+                        }
+                    }
+                    
+                    // Also look for tags at the beginning of the document (outside frontmatter)
+                    const tagPattern = /^(#\w+\s*)+/;
+                    if (tagPattern.test(cleanedContent)) {
+                        // Remove tags at the beginning
+                        cleanedContent = cleanedContent.replace(tagPattern, '').trim();
+                        wasModified = true;
+                    }
+                    
+                    // Update the file if content changed
+                    if (wasModified) {
+                        await this.app.vault.modify(file, cleanedContent);
+                        modified++;
+                        
+                        // Remove from tagged files record
+                        delete this.settings.taggedFiles[file.path];
+                    }
+                } catch (error) {
+                    console.error(`Error untagging ${file.basename}:`, error);
+                    new Notice(`Failed to untag ${file.basename}: ${error.message}`);
+                }
+            }
+            
+            // Save the updated tagged files record
+            await this.saveSettings();
+            
+            new Notice(`Completed! Untagged ${modified} of ${files.length} files`);
+        } finally {
+            if (view) {
+                view.resetProgress();
+            }
+        }
+    }
+
+    async tagCurrentDocument() {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile || activeFile.extension !== 'md') {
+            new Notice('Please open a markdown file first');
+            return;
+        }
+
+        const tags = await this.getUserDefinedTags();
+        if (!tags) return; // User cancelled
+
+        try {
+            const initialContent = await this.app.vault.read(activeFile);
+            
+            // Skip if already tagged
+            if (this.isAlreadyTagged(initialContent)) {
+                console.log(`Skipping ${activeFile.basename} - already has tag metadata`);
+                return;
+            }
+            
+            const taggedContent = await this.processContentWithOllama(initialContent, tags);
+
+            // Verify file hasn't been modified while waiting for Ollama
+            const currentContent = await this.app.vault.read(activeFile);
+            if (currentContent !== initialContent) {
+                console.log(`Skipping ${activeFile.basename} - content changed while processing`);
+                return;
+            }
+
+            // Only update if tags were actually added
+            if (taggedContent !== initialContent) {
+                await this.app.vault.modify(activeFile, taggedContent);
+                this.settings.taggedFiles[activeFile.path] = Date.now();
+                await this.saveSettings();
+                new Notice(`Tagged: ${activeFile.basename}`);
+            }
+        } catch (error) {
+            console.error(`Error tagging ${activeFile.basename}:`, error);
+            new Notice(`Failed to tag ${activeFile.basename}: ${error.message}`);
+        }
+    }
+
+    async untagCurrentDocument() {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile || activeFile.extension !== 'md') {
+            new Notice('Please open a markdown file first');
+            return;
+        }
+
+        try {
+            const content = await this.app.vault.read(activeFile);
+            let cleanedContent = content;
+            let wasModified = false;
+            
+            // Check if the file has LLM Tagger tags
+            if (this.isAlreadyTagged(content)) {
+                // Pattern to match the entire tagged section:
+                // 1. The metadata section with LLM-tagged
+                // 2. The summary text
+                // 3. The divider (---)
+                // 4. Optional newlines after the divider
+                const taggedSectionPattern = /---\nLLM-tagged:[\s\S]*?---\n\n[\s\S]*?\n\n---\n+/;
+                
+                // Remove the entire tagged section
+                cleanedContent = content.replace(taggedSectionPattern, '');
+                
+                if (cleanedContent !== content) {
+                    wasModified = true;
+                }
+            }
+            
+            // Also look for tags at the beginning of the document (outside frontmatter)
+            const tagPattern = /^(#\w+\s*)+/;
+            if (tagPattern.test(cleanedContent)) {
+                // Remove tags at the beginning
+                cleanedContent = cleanedContent.replace(tagPattern, '').trim();
+                wasModified = true;
+            }
+            
+            // Update the file if content changed
+            if (wasModified) {
+                await this.app.vault.modify(activeFile, cleanedContent);
+                
+                // Remove from tagged files record
+                delete this.settings.taggedFiles[activeFile.path];
+                await this.saveSettings();
+                new Notice(`Untagged: ${activeFile.basename}`);
+            }
+        } catch (error) {
+            console.error(`Error untagging ${activeFile.basename}:`, error);
+            new Notice(`Failed to untag ${activeFile.basename}: ${error.message}`);
+        }
+    }
+
 }
 
 class LLMTaggerView extends ItemView {
@@ -697,9 +920,22 @@ class LLMTaggerView extends ItemView {
         this.progressText.addClass('progress-text');
         this.progressText.textContent = 'Ready to tag documents';
 
+        // Buttons container for bulk operations
+        const bulkButtonsContainer = container.createDiv();
+        bulkButtonsContainer.addClass('buttons-container');
+        bulkButtonsContainer.style.display = 'flex';
+        bulkButtonsContainer.style.justifyContent = 'space-between';
+        bulkButtonsContainer.style.marginTop = '20px';
+        bulkButtonsContainer.createEl('h3', { text: 'Bulk Operations' });
+        
+        // Create a div for the bulk buttons
+        const bulkButtonsDiv = bulkButtonsContainer.createDiv();
+        bulkButtonsDiv.style.display = 'flex';
+        bulkButtonsDiv.style.gap = '10px';
+        
         // Start button
-        const startButton = container.createEl('button', { 
-            text: 'Start tagging',
+        const startButton = bulkButtonsDiv.createEl('button', { 
+            text: 'Tag all documents',
             cls: 'mod-cta'
         });
 
@@ -728,6 +964,81 @@ class LLMTaggerView extends ItemView {
                 await this.plugin.addTagsToDocuments(this);
             } finally {
                 startButton.disabled = false;
+            }
+        });
+        
+        // Untag all button
+        const untagButton = bulkButtonsDiv.createEl('button', { 
+            text: 'Untag all documents',
+            cls: 'mod-warning'
+        });
+
+        untagButton.addEventListener('click', async () => {
+            untagButton.disabled = true;
+            try {
+                await this.plugin.untagAllDocuments(this);
+            } finally {
+                untagButton.disabled = false;
+            }
+        });
+        
+        // Current document operations
+        const currentDocContainer = container.createDiv();
+        currentDocContainer.addClass('current-doc-container');
+        currentDocContainer.style.marginTop = '20px';
+        currentDocContainer.createEl('h3', { text: 'Current Document' });
+        
+        // Create a div for the current document buttons
+        const currentDocButtonsDiv = currentDocContainer.createDiv();
+        currentDocButtonsDiv.style.display = 'flex';
+        currentDocButtonsDiv.style.gap = '10px';
+        
+        // Tag current document button
+        const tagCurrentButton = currentDocButtonsDiv.createEl('button', { 
+            text: 'Tag current document',
+            cls: 'mod-cta'
+        });
+        
+        tagCurrentButton.addEventListener('click', async () => {
+            if (!modelSelect.value) {
+                new Notice('Please select a model first');
+                return;
+            }
+
+            const tagInput = tagsInput.value.trim();
+            if (!tagInput) {
+                new Notice('Please enter at least one tag');
+                return;
+            }
+
+            const tags = tagInput.split(',').map(tag => tag.trim()).filter(tag => tag);
+            
+            // Save tags as default if they changed
+            if (tagInput !== this.plugin.settings.defaultTags.join(', ')) {
+                this.plugin.settings.defaultTags = tags;
+                await this.plugin.saveSettings();
+            }
+            
+            tagCurrentButton.disabled = true;
+            try {
+                await this.plugin.tagCurrentDocument();
+            } finally {
+                tagCurrentButton.disabled = false;
+            }
+        });
+        
+        // Untag current document button
+        const untagCurrentButton = currentDocButtonsDiv.createEl('button', { 
+            text: 'Untag current document',
+            cls: 'mod-warning'
+        });
+        
+        untagCurrentButton.addEventListener('click', async () => {
+            untagCurrentButton.disabled = true;
+            try {
+                await this.plugin.untagCurrentDocument();
+            } finally {
+                untagCurrentButton.disabled = false;
             }
         });
     }
