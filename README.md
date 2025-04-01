@@ -63,6 +63,12 @@ You can exclude specific files or folders from being tagged by adding patterns i
 
 ## Changelog
 
+### v1.1.1 (April 1, 2025)
+- Added "Untag all documents" button to remove tags from all files
+- Added "Tag current document" and "Untag current document" buttons for single file operations
+- Reorganized UI with separate sections for bulk operations and current document operations
+- Added commands to tag and untag the current document
+
 ### v1.1 (March 21, 2025)
 - Added exclusion patterns to skip specific files/folders from tagging
 - Skip auto-tagging for files that are currently being edited

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-llm-tagger",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Obsidian plugin for automatic tagging using Ollama LLMs",
   "main": "main.js",
   "scripts": {
