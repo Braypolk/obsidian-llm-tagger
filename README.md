@@ -14,11 +14,12 @@ This plugin uses Ollama to automatically tag your Obsidian notes using large lan
 - 📝 Skip auto-tagging for files you're currently editing
 - 🔄 Auto-tag files when you close them
 - 💾 Persistent tag storage between Obsidian sessions
+- 🌐 Custom Ollama server URL support for remote or non-standard setups
 
 ## Prerequisites
 
 1. [Obsidian](https://obsidian.md/) v1.0.0 or higher
-2. [Ollama](https://ollama.ai/) installed and running locally
+2. [Ollama](https://ollama.ai/) installed and running locally or on an accessible server
 
 ## Installation
 
@@ -56,12 +57,19 @@ You can exclude specific files or folders from being tagged by adding patterns i
 
 ## Configuration
 
+- **Ollama URL**: Set the URL of your Ollama API server (default: http://localhost:11434)
 - **Model Selection**: Choose any Ollama model you have installed
 - **Default Tags**: Set your commonly used tags
 - **Auto-tagging**: Toggle automatic tagging of new/modified files
 - **Exclude Patterns**: Specify files or folders to exclude from tagging
 
 ## Changelog
+
+### v1.1.2 (April 2, 2025)
+- Added custom Ollama server URL configuration
+- Support for connecting to remote Ollama instances
+- Dynamic model loading when changing the server URL
+- Improved error handling for server connections
 
 ### v1.1.1 (April 1, 2025)
 - Added "Untag all documents" button to remove tags from all files
