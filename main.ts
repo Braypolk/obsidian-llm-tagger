@@ -22,6 +22,7 @@ interface LLMTaggerSettings {
     autoAddTags: boolean;
     taggedFiles: { [path: string]: number }; // Map of file paths to timestamp of last tagging
     excludePatterns: string[]; // Patterns for files/folders to exclude from tagging
+    ollamaUrl: string; // URL for the Ollama API server
 }
 
 const DEFAULT_SETTINGS: LLMTaggerSettings = {
@@ -29,7 +30,8 @@ const DEFAULT_SETTINGS: LLMTaggerSettings = {
     defaultTags: [],
     autoAddTags: false,
     taggedFiles: {},
-    excludePatterns: []
+    excludePatterns: [],
+    ollamaUrl: 'http://localhost:11434'
 }
 
 export default class LLMTaggerPlugin extends Plugin {
@@ -327,7 +329,7 @@ export default class LLMTaggerPlugin extends Plugin {
 
     async getOllamaModels(): Promise<string[]> {
         try {
-            const response = await fetch('http://localhost:11434/api/tags');
+            const response = await fetch(`${this.settings.ollamaUrl}/api/tags`);
             const data = await response.json();
             return data.models?.map((model: any) => model.name) || [];
         } catch (error) {
@@ -469,7 +471,7 @@ export default class LLMTaggerPlugin extends Plugin {
         let processedContent = this.addDeterministicTags(content, availableTags);
 
         // Get tag suggestions and placement from Ollama for additional semantic tagging
-        const response = await fetch('http://localhost:11434/api/generate', {
+        const response = await fetch(`${this.settings.ollamaUrl}/api/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1068,9 +1070,56 @@ class LLMTaggerSettingTab extends PluginSettingTab {
         containerEl.empty();
 
         new Setting(containerEl)
+            .setName('Ollama URL')
+            .setDesc('URL of your Ollama API server')
+            .addText((text) => {
+                text.setPlaceholder('http://localhost:11434')
+                .setValue(this.plugin.settings.ollamaUrl)
+                .onChange(async (value) => {
+                    this.plugin.settings.ollamaUrl = value.trim() === '' ? 'http://localhost:11434' : value.trim();
+                    await this.plugin.saveSettings();
+                });
+
+                // when user leaves input, try to reload Ollama models
+                text.inputEl.addEventListener("blur", async () => {
+                    const modelSelect = this.containerEl.querySelector('.model-select') as HTMLSelectElement;
+                    try {
+                        const models = await this.plugin.getOllamaModels();
+                        if (models.length == 0) { throw new Error("Failed to reload Ollama models"); }
+                        if (modelSelect) {
+                            // Clear existing options except placeholder
+                            while (modelSelect.options.length > 1) {
+                                modelSelect.remove(1);
+                            }
+                            
+                            // Add new options
+                            models.forEach(model => {
+                                const option = modelSelect.createEl('option');
+                                option.value = model;
+                                option.text = model;
+                                if (model === this.plugin.settings.selectedModel) {
+                                    option.selected = true;
+                                }
+                            });
+                            modelSelect.options[modelSelect.selectedIndex].text = 'Select a model...';
+                            modelSelect.disabled = false;
+                        } else {
+                            // throw error if the select element doesn't exist
+                            throw new Error("Error loading page");
+                        }
+                    } catch (error) {
+                        new Notice(error);                        
+                        modelSelect.options[modelSelect.selectedIndex].text = 'Failed to load models';
+                        modelSelect.disabled = true;
+                    }
+                });
+            });
+
+        new Setting(containerEl)
             .setName('Default model')
             .setDesc('Select the default Ollama model to use')
             .addDropdown(async (dropdown) => {
+                dropdown.selectEl.addClass('model-select');
                 dropdown.addOption('', 'Select a model...');
                 try {
                     const models = await this.plugin.getOllamaModels();
